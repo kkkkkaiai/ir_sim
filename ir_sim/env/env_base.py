@@ -18,11 +18,11 @@ from math import sin, cos, pi
 from .env_robot import EnvRobot
 from ir_sim.global_param import world_param, env_param
 from .env_obstacle import EnvObstacle
-from ir_sim.world import world, RobotDiff, RobotAcker, RobotOmni, ObstacleCircle, ObstaclePolygon, ObstacleBlock, ObstacleLine
+from ir_sim.world import world, RobotDiff, RobotAcker, RobotOmni, RobotTwist, ObstacleCircle, ObstaclePolygon, ObstacleBlock, ObstacleLine
 
 class EnvBase:
 
-    robot_factory={'robot_diff': RobotDiff, 'robot_acker': RobotAcker, 'robot_omni': RobotOmni}
+    robot_factory={'robot_diff': RobotDiff, 'robot_acker': RobotAcker, 'robot_omni': RobotOmni, 'robot_twist': RobotTwist}
     obstacle_factory = {'obstacle_circle': ObstacleCircle, 'obstacle_block': ObstacleBlock, 'obstacle_polygon': ObstaclePolygon, 'obstacle_line': ObstacleLine}
 
     def __init__(self, world_name=None, control_mode='auto', collision_mode='stop', 
@@ -270,6 +270,9 @@ class EnvBase:
     def get_lidar_scan(self, id=0):
         return self.env_robot.robot_list[id].get_lidar_scan()
     
+    def get_lidar_points(self, id=0):
+        return self.env_robot.robot_list[id].get_lidar_points()
+    
     def get_landmarks(self, id=0):
         return self.env_robot.robot_list[id].get_landmarks()
     
@@ -350,7 +353,6 @@ class EnvBase:
     def render(self, pause_time=0.05, fig_kwargs=dict(), **kwargs):
         # figure_args: arguments when saving the figures for animation, see https://matplotlib.org/3.1.1/api/_as_gen/matplotlib.pyplot.savefig.html for detail
         # default figure arguments
-
         if not self.disable_all_plot: 
             if self.world.sampling:
                 self.draw_components(self.ax, mode='dynamic', **kwargs)
@@ -634,9 +636,10 @@ class EnvBase:
     def file_check(file_name):
         # check whether file exist or the type is correct
         if file_name is None: return None
-            
+
         if os.path.exists(file_name):
             abs_file_name = file_name
+            
         elif os.path.exists(sys.path[0] + '/' + file_name):
             abs_file_name = sys.path[0] + '/' + file_name
         elif os.path.exists(os.getcwd() + '/' + file_name):

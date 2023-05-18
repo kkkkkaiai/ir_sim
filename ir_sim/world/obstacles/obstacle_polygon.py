@@ -18,22 +18,16 @@ class ObstaclePolygon(ObstacleBase):
         self.state = state
 
         self.init_vertex = np.vstack(vertex).T   # 2*edge matrix
-
         trans, rot = get_transform(self.state)
-
         self.vertex =  rot @ self.init_vertex + trans 
-
         self.radius = None
-
         super(ObstaclePolygon, self).__init__(id=id, dynamic=dynamic, **kwargs)
 
         self.plot_patch_list = []
         self.center = self.state[0:2]
 
     def gen_inequal_global(self):
-
         temp_vertex = np.c_[self.vertex, self.vertex[0:2, 0]]   
-
         point_num = self.vertex.shape[1]
         
         A = np.zeros((point_num, self.point_dim[0]))

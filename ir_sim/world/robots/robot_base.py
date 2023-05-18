@@ -10,6 +10,9 @@ import matplotlib as mpl
 from ir_sim.util.util import WrapToRegion
 from ir_sim.global_param import world_param, env_param
 
+import time
+from decomp_util_2d import *
+from geometric_utils import *
 
 # define geometry point and segment for collision detection.
 # point [x, y]
@@ -120,7 +123,7 @@ class RobotBase:
 
         if isinstance(vel, list): vel = np.c_[vel]
         if vel.ndim == 1: vel = vel[:, np.newaxis]
-            
+
         assert vel.shape == self.vel_dim and self.state.shape == self.state_dim
 
         vel = np.around(vel.astype(float), 2)  # make sure the vel is float
@@ -131,7 +134,6 @@ class RobotBase:
 
         self.vel = vel
         self.trajectory.append(self.state.copy())
-
         new_state = self.dynamics(self.state, vel, **kwargs)
 
         if not world_param.collision_mode == 'unobstructed':
@@ -606,6 +608,39 @@ class RobotBase:
 
     def get_lidar_scan(self):
         return self.lidar.get_LaserScan()
+    
+    def get_lidar_points(self, filter_unknow=True):
+        lidar_data = self.lidar.get_LaserScan()
+        ranges = lidar_data['ranges']
+        min_angle = lidar_data['angle_min']
+        increment = lidar_data['angle_increment']
+        range_max = lidar_data['range_max']
+        points = []
+        for i in range(len(ranges)):
+            if filter_unknow and ranges[i] >= range_max:
+                continue
+            angle = min_angle + i * increment
+            point = ranges[i] * np.array([np.cos(angle), np.sin(angle)])
+            points.append(point)
+        
+        x, y , yaw = self.state[0, 0], self.state[1, 0], -self.state[2, 0]
+        points = np.array(points)
+        if points.shape[0] > 0:
+            points = points @ np.array([[np.cos(yaw), -np.sin(yaw)], [np.sin(yaw), np.cos(yaw)]])
+            points = points + np.array([x, y])
+        return points
+
+    def decomp_utils(self):
+        bbox = np.array([5.0, 5.0])
+        decomp = SeedDecomp2D(np.array(self.state[0:2, 0]))
+        decomp.set_obs(self.get_lidar_points(True))
+        decomp.set_local_bbox(bbox)
+        decomp.dilate(1.)
+        poly = decomp.get_polyhedron()
+        vertices = np.array(cal_vertices(poly))
+        vertices = np.vstack([vertices, vertices[0]])
+
+        return vertices, poly
 
     def get_landmarks(self):
         return self.lidar.get_landmarks()

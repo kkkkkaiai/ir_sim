@@ -85,6 +85,7 @@ class RobotDiff(RobotBase):
         return G, h
 
     def plot_robot(self, ax, robot_color = 'g', goal_color='r', 
+                   show_polygon=False,
                     show_goal=True, show_text=False, show_traj=False, 
                     show_uncertainty=False, traj_type='-g', fontsize=10, 
                     arrow_width=0.6, arrow_length=0.4, **kwargs):
@@ -104,6 +105,13 @@ class RobotDiff(RobotBase):
 
         self.plot_patch_list.append(robot_circle)
         
+        if show_polygon:
+            vertices = self.decomp_utils()
+            convex_poly = mpl.patches.Polygon(vertices, color='orange', fill=False, alpha=0.5)
+            convex_poly.set_zorder(2)
+
+            ax.add_patch(convex_poly)
+            self.plot_patch_list.append(convex_poly)
 
         # arrow
         theta = self.state[2][0]
