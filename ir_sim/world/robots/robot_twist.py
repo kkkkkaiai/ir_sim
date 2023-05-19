@@ -8,6 +8,10 @@ from ir_sim.util.util import WrapToPi
 from geometric_utils import *
 import matlab.engine
 import time
+import lcm
+import select
+from ir_sim.lcm_message.safelcm.state_t import state_t
+from ir_sim.lcm_message.safelcm.result_t import result_t
 
 class Polytope:
     def __init__(self, B=np.empty((0, 3)), b=np.empty((0, 1)) ) -> None:
@@ -49,19 +53,21 @@ class RobotTwist(RobotBase):
 
         # shape args
         # open matlab engine
-        eng_name = matlab.engine.find_matlab()
-        if len(eng_name) == 0:
-            print('Please open matlab engine first!')
-        else:
-            print('Matlab engine opened!')
-        self.eng = matlab.engine.connect_matlab()          
+        # eng_name = matlab.engine.find_matlab()
+        # if len(eng_name) == 0:
+        #     print('Please open matlab engine first!')
+        # else:
+        #     print('Matlab engine opened!')
+        # self.eng = matlab.engine.connect_matlab()          
         # self.eng = matlab.engine.start_matlab()
+        # self.eng=self.eng.result()
         # self.eng.addpath(self.eng.genpath('/home/ri-robot/PhD/poly_opt/src/polynomial_optimization_for_robot_control'))
 
 
+        self.lc = lcm.LCM()
+        self.subscription = self.lc.subscribe("SAFETY_FILTER", self.matlab_result_handle)
 
-
-
+        points = [[-0.7, 0.5], [-0.7, -0.5], [0.3, -0.5], [0.8, 0.0], [0.3, 0.5]]
         points.append(points[0])
         self.points = np.array(points)
         self.init_vertex = self.points[:len(points)-1]
@@ -84,7 +90,11 @@ class RobotTwist(RobotBase):
             self.odometry = {'mean': self.state, 'std': np.array([[0], [0]])}   # odometry
 
         self.alpha = alpha
-            
+    
+    def matlab_result_handle(self, channel, data):
+        msg = result_t.decode(data)
+        self.result = (msg.v_safe, msg.theta_safe, msg.success)
+
     def dynamics(self, state, vel,  **kwargs):
         # The differential-wheel robot dynamics
         # reference: Probability robotics, motion model
@@ -96,7 +106,6 @@ class RobotTwist(RobotBase):
         ref_ctrl = ref_ctrl.reshape(6,1)
         _, safe_poly = self.decomp_utils()
 
-
         safe_region_poly = Polytope()   # safe region's poly in world frame
         hyperplanes = safe_poly.hyperplanes()
     
@@ -105,8 +114,12 @@ class RobotTwist(RobotBase):
 
         safe_region_poly = self.rep_robot_in_world(mr.TransInv(temp_state), safe_region_poly) # safe region's poly in body frame
         start_time = time.time()
-        S_filtered, theta_safe, is_success = self.safety_filter(self.polytopes, safe_region_poly, ref_ctrl, 0)
-        print('safety filter time: ', time.time() - start_time)
+        self.pub_matlab_request(self.polytopes, safe_region_poly, ref_ctrl,1)
+        end_time = time.time()
+        print('time ', end_time - start_time)
+        # S_filtered, theta_safe, is_success = self.safety_filter(self.polytopes, safe_region_poly, ref_ctrl, 0)
+        S_filtered, theta_safe, is_success = self.result
+        S_filtered = np.array(S_filtered)
 
         # temp_vel = np.array([0, 0, vel[1][0], vel[0][0], 0, 0])
         if is_success == 0:
@@ -159,6 +172,23 @@ class RobotTwist(RobotBase):
         [S_error, theta_error] = mr.AxisAng6(Vb)
         return Vb, S_error, theta_error
     
+    def pub_matlab_request(self, robot, free_region, V_nominal, flag):
+        print('pub robot info')
+        msg = state_t()
+        msg.num_hyper_robot = robot.B.shape[0]
+        # flatten matrix and convert to list, then padding zero
+        msg.robot_B = robot.B.flatten(order='F').tolist() + [0] * (30 - robot.B.shape[0] * 3)
+        msg.robot_b = robot.b.flatten(order='F').tolist() + [0] * (10 - robot.b.shape[0])
+        msg.num_hyper_convex = free_region.B.shape[0]
+        msg.hyper_B = free_region.B.flatten(order='F').tolist() + [0] * (90 - free_region.B.shape[0] * 3)
+        msg.hyper_b = free_region.b.flatten(order='F').tolist() + [0] * (30 - free_region.b.shape[0])
+        msg.v = V_nominal.flatten(order='F').tolist()
+        msg.flag = bool(flag)
+        print("before publish",time.time())
+        self.lc.publish("ENV_INFO", msg.encode())
+        print("after publish",time.time())
+        self.lc.handle()
+
     def safety_filter(self, robot, free_region, V_nominal, flag):
         #  Input: 
         #  robot:polytope H-representation for robot in its own frame
@@ -247,7 +277,7 @@ class RobotTwist(RobotBase):
                     arrow_width=0.6, arrow_length=0.4, **kwargs):
         x = self.state[0, 0]
         y = self.state[1, 0]
-        yaw = self.state[2, 0]
+        yaw = -self.state[2, 0]
 
         ego_vertices = np.array(self.points) @ np.array([[np.cos(yaw), -np.sin(yaw)], [np.sin(yaw), np.cos(yaw)]])
         ego_vertices += np.array([x, y])

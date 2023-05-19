@@ -1,7 +1,7 @@
 from ir_sim.env import EnvBase
 import numpy as np
 
-env = EnvBase('grid_map.yaml', control_mode='keyboard', init_args={'no_axis': False}, collision_mode='stop', save_ani=False)
+env = EnvBase('grid_map.yaml', control_mode='keyboard', init_args={'no_axis': False}, collision_mode='stop', save_ani=True)
 # env = EnvBase('grid_map_car.yaml', control_mode='keyboard', init_args={'no_axis': False}, collision_mode='stop', save_ani=True)
 
 for i in range(3000):

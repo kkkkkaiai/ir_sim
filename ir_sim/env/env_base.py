@@ -107,7 +107,7 @@ class EnvBase:
 
         # configure path
         root_path = kwargs.get('root_path', Path(sys.path[0]))
-        ani_buffer_path = kwargs.get('ani_buffer_path', Path(sys.path[0] + '/' + 'animation_buffer'))
+        ani_buffer_path = kwargs.get('ani_buffer_path', Path('./' + 'animation_buffer'))
         ani_path = kwargs.get('ani_path', Path(sys.path[0] + '/' + 'animation'))
         fig_path = kwargs.get('fig_path', Path(sys.path[0] + '/' + 'fig'))
 
@@ -350,7 +350,7 @@ class EnvBase:
     # endregion: reset the environment
 
     # region: environment render
-    def render(self, pause_time=0.05, fig_kwargs=dict(), **kwargs):
+    def render(self, pause_time=0.001, fig_kwargs=dict(), **kwargs):
         # figure_args: arguments when saving the figures for animation, see https://matplotlib.org/3.1.1/api/_as_gen/matplotlib.pyplot.savefig.html for detail
         # default figure arguments
         if not self.disable_all_plot: 

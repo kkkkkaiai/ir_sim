@@ -631,7 +631,7 @@ class RobotBase:
         return points
 
     def decomp_utils(self):
-        bbox = np.array([5.0, 5.0])
+        bbox = np.array([2.0, 2.0])
         decomp = SeedDecomp2D(np.array(self.state[0:2, 0]))
         decomp.set_obs(self.get_lidar_points(True))
         decomp.set_local_bbox(bbox)
