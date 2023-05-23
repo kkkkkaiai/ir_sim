@@ -66,10 +66,21 @@ class RobotTwist(RobotBase):
 
         self.lc = lcm.LCM()
         self.subscription = self.lc.subscribe("SAFETY_FILTER", self.matlab_result_handle)
-
+        # plot a ellipse and sample into N points
+        # a = 1.0
+        # b = 0.3
+        # x = np.linspace(-a, a, 3)
+        # y = np.sqrt(b*(1 - x**2/a))
+        # x = np.hstack([x, -x])
+        # y = np.hstack([y, -y])
+        # points = np.vstack([x, y]).T.tolist()
+        # mpl.pyplot.scatter(points[:,0], points[:,1])
+        # mpl.pyplot.show()
+        # exit()
         points = [[-0.7, 0.5], [-0.7, -0.5], [0.3, -0.5], [0.8, 0.0], [0.3, 0.5]]
         points.append(points[0])
         self.points = np.array(points)
+        print(self.points.shape)
         self.init_vertex = self.points[:len(points)-1]
         self.poly = get_convex_hull(points)
         self.polytopes = Polytope()     # body's poly in its own frame
@@ -77,6 +88,7 @@ class RobotTwist(RobotBase):
         for hp in hyperplanes:
             print(hp.n_, hp.p_)
             self.polytopes.add_hyperplane(hp.n_, hp.p_)
+
         self.radius = radius
         self.radius_collision = radius + radius_exp
         self.shape = radius
